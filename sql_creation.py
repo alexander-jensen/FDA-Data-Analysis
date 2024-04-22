@@ -146,3 +146,153 @@ def create_insert_branded_foods(conn, clear_table=False):
         
     conn.commit()
     
+    
+def create_brand_names(conn, clear_table=True):
+    brand_names = pd.read_csv(os.path.join('cleaned', 'brand_names.csv'))[['brand_name_id', 'brand_name']]
+    
+    # Create table
+    brand_names_schema = """
+        CREATE TABLE brand_names (
+            brand_id INTEGER PRIMARY KEY NOT NULL,
+            brand_name VARCHAR(64) NOT NULL
+        )
+    """
+
+    run_command(conn, brand_names_schema)
+    
+    # Clear table if needed
+    if clear_table:
+        run_command(conn, 'DELETE FROM brand_names')
+    
+    # Insert values into table
+    insert_command = "INSERT INTO brand_names VALUES (%s, %s)"
+    
+    for row in brand_names.to_numpy():
+        run_command(conn, insert_command, row)
+        
+        
+def create_brand_owners(conn, clear_table=True):
+    brand_owners = pd.read_csv(os.path.join('cleaned', 'brand_owners.csv'))[['brand_owner_id', 'brand_owner']]
+    brand_owners.head()
+
+    # Create table
+    brand_owners_schema = """
+        CREATE TABLE brand_owners (
+            brand_id INTEGER PRIMARY KEY NOT NULL,
+            brand_name VARCHAR(128) NOT NULL
+        )
+    """
+
+    run_command(conn, brand_owners_schema)
+
+    # Clear table if needed
+    if clear_table:
+        run_command(conn, 'DELETE FROM brand_owners')
+
+    # Insert values into table
+    insert_command = "INSERT INTO brand_owners VALUES (%s, %s)"
+
+    for row in brand_owners.to_numpy():
+        run_command(conn, insert_command, row)
+        
+def create_food_categories(conn, clear_table=True):
+    # Create food_categories schema
+    food_cat = pd.read_csv(os.path.join('cleaned', 'branded_food_categories.csv'))[['category_id', 'category']]
+
+    food_cat_schema = """
+        CREATE TABLE food_categories (
+            brand_id INTEGER PRIMARY KEY NOT NULL,
+            category VARCHAR(64) NOT NULL
+        )
+    """
+
+    run_command(conn, food_cat_schema)
+
+    if clear_table:
+        run_command(conn, "DELETE FROM food_categories")
+        
+        
+    insert_command = "INSERT INTO food_categories VALUES (%s, %s)"
+    for row in food_cat.to_numpy():
+        run_command(conn, insert_command, row)
+        
+def create_ingredients(conn, clear_table=True):
+    ingredients = pd.read_csv(os.path.join('cleaned', 'ingredients.csv'))[['ingredient_id', 'ingredient']]
+
+    ingred_schema = """
+        CREATE TABLE ingredients (
+            ingredient_id INTEGER PRIMARY KEY NOT NULL,
+            ingredient VARCHAR(2048) NOT NULL
+        )
+    """
+    run_command(conn, ingred_schema)
+    
+    if clear_table:
+        run_command(conn, "DELETE FROM ingredients")
+
+    insert_command = "INSERT INTO ingredients VALUES (%s, %s)"
+    for row in ingredients.to_numpy():
+        run_command(conn, insert_command, row)
+        
+        
+def create_food_to_ing(conn, clear_table=True):
+    food_to_ingred = pd.read_csv(os.path.join('cleaned', 'food_to_id.csv'))[['fdc_id', 'ingredient_id']].astype(int)
+    
+    fti_schema = """
+        CREATE TABLE food_to_ingredients (
+            fdc_id INTEGER,
+            ingredient_id INTEGER
+        )
+    """
+    
+    run_command(conn, fti_schema)
+    
+    if clear_table:
+        run_command(conn, 'DELETE FROM food_to_ingredients')
+        
+    for row in food_to_ingred.to_numpy():
+        run_command(conn, 'INSERT INTO food_to_ingredients VALUES (%s, %s)', row)
+        
+        
+def create_nutrients(conn, clear_table=True):
+    nutrients = pd.read_csv(os.path.join('cleaned', 'nutrient.csv'))[['id', 'name', 'unit_name']]
+    nutrients_schema = """
+        CREATE TABLE nutrients (
+            nutrient_id INTEGER PRIMARY KEY NOT NULL,
+            nutrient_name VARCHAR(128) NOT NULL,
+            unit_name VARCHAR(8) NOT NULL
+        )
+    """
+
+    run_command(conn, nutrients_schema)
+    
+    if clear_table:
+        run_command(conn, 'DELETE FROM nutrients')
+
+    for row in nutrients.to_numpy():
+        run_command(conn, 'INSERT INTO nutrients VALUES (%s, %s, %s)', row)
+        
+        
+def create_food_nutrients(conn, clear_table=True):
+    # ids do not contain a valid id in the nutrients table
+    invalid_ids = [20938736, 20938797, 20938853, 20941611, 20941655, 20941700,
+                   20941745, 20941795, 22036319, 22036352, 22036385, 22036418]
+    food_nutrients = pd.read_csv(os.path.join('cleaned', 'food_nutrient.csv'), 
+                                 skiprows=invalid_ids, 
+                                 usecols=['fdc_id', 'nutrient_id', 'amount']).dropna()
+    
+    nutrients_schema = """
+        CREATE TABLE food_nutrients (
+            fdc_id INTEGER,
+            nutrient_id INTEGER REFERENCES nutrients(nutrient_id),
+            amount DECIMAL NOT NULL
+        )
+    """
+    
+    run_command(conn, nutrients_schema)
+    
+    if clear_table:
+        run_command(conn, 'DELETE FROM food_nutrients')
+        
+    for row in food_nutrients.to_numpy():
+        run_command(conn, 'INSERT INTO food_nutrients VALUES (%s, %s, %s)', row)
